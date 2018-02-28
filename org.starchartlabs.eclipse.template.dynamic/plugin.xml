@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension
+         point="org.eclipse.ui.editors.templates">
+      <resolver
+            class="org.starchartlabs.eclipse.template.dynamic.EnclosingBeanFieldsResolver"
+            contextTypeId="java"
+            description="Allows dyanmic insertion of values per bean field. A bean field is a field with a matching-named getter. Use $f for field name, $g for getter name. Form :enclosed_bean_fields(template, separator, newline-boolean)"
+            type="enclosed_bean_fields">
+      </resolver>
+   </extension>
+
+</plugin>
