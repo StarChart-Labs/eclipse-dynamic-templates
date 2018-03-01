@@ -8,7 +8,7 @@ See recent activity in the [Change Log](CHANGELOG.md)
 
 The Template Dynamic Variables plug-in is hosted via Eclipse update site at the address:
 
-`https://raw.githubusercontent.com/StarChart-Labs/eclipse-dynamic-templates/master/org.starchartlabs.eclipse.template.dynamic.site/`
+`https://raw.githubusercontent.com/StarChart-Labs/eclipse-dynamic-templates/latest-release/org.starchartlabs.eclipse.template.dynamic.site/`
 
 # Use
 
