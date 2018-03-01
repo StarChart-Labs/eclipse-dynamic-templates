@@ -8,7 +8,7 @@
  * Contributors:
  *    romeara - initial API and implementation and/or initial documentation
  */
-package org.starchartlabs.eclipse.template.dynamic;
+package org.starchartlabs.eclipse.template.dynamic.resolver;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -38,6 +39,26 @@ import org.eclipse.jface.text.templates.TemplateVariableResolver;
  * booleans, "is(Fieldname)" will also be considered a match
  *
  * <p>
+ * The template variable resolved by this class is expected to be of the form:
+ *
+ * <pre>
+ * ${id:enclosed_bean_fields(template, separator)}
+ * </pre>
+ *
+ * Where the user-provided values are:
+ * <ul>
+ * <li>id - identifier (unique within template) and default filler value in case of error</li>
+ * <li>template - Line to substitute per bean-field. May use ${name} within to substitute field name, and ${getter} to
+ * substitute getter method (including parentheses)</li>
+ * <li>separator - value, if any, to place between each occurrence of the substituted template. May use ${newline} to
+ * substitute in a System.lineSeparator(). Resulting new-lines will be overridden by code formatter if it is enabled for
+ * the template</li>
+ * </ul>
+ *
+ * <p>
+ * This class is intended to be extensible
+ *
+ * <p>
  * References:
  * <ul>
  * <li>org.eclipse.jface.text.templates.TemplateVariable</li>
@@ -49,13 +70,16 @@ import org.eclipse.jface.text.templates.TemplateVariableResolver;
  * </ul>
  *
  * @author romeara
+ * @since 0.1.0
  */
 @SuppressWarnings("restriction")
-public class EnclosingBeanFieldsResolver extends TemplateVariableResolver {
+public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
 
-    private static final String NAME_PLACEHOLDER = "\\$\\{name\\}";
+    protected static final String NAME_PLACEHOLDER = "\\$\\{name\\}";
 
-    private static final String GETTER_PLACEHOLDER = "\\$\\{getter\\}";
+    protected static final String GETTER_PLACEHOLDER = "\\$\\{getter\\}";
+
+    protected static final String NEWLINE_PLACEHOLDER = "\\$\\{newline\\}";
 
     private static final Set<String> BOOLEAN_TYPE_SIGNATURES = Stream.of("Z", "QBoolean;").collect(Collectors.toSet());
 
@@ -66,6 +90,7 @@ public class EnclosingBeanFieldsResolver extends TemplateVariableResolver {
 
             String[] bindings = resolveAll(jc, variable.getVariableType().getParams());
 
+            // Store the result, and if resolved set unambiguous to true to avoid trying to get user input
             if (bindings != null) {
                 variable.setValues(bindings);
                 variable.setUnambiguous(true);
@@ -78,15 +103,20 @@ public class EnclosingBeanFieldsResolver extends TemplateVariableResolver {
         }
     }
 
-    protected String[] resolveAll(CompilationUnitContext context, List<String> params) {
+    /**
+     * Returns all possible bindings available in <code>context</code>, taking into account variable parameters
+     *
+     * @param context
+     *            The Java compilation unit context in which to resolve the type
+     * @param variableParameters
+     * @return an array of possible bindings of this type in <code>context</code>, null if binding was unsuccessful
+     */
+    protected String[] resolveAll(CompilationUnitContext context, List<String> variableParameters) {
         String[] result = null;
 
-        if (params.size() == 3) {
-            String template = params.get(0);
-            String separator = params.get(1);
-            boolean newline = Boolean.valueOf(params.get(2));
-
-            separator = (newline ? "\n" + separator : separator);
+        if (variableParameters.size() == 2) {
+            String template = variableParameters.get(0);
+            String separator = variableParameters.get(1).replaceAll(NEWLINE_PLACEHOLDER, System.lineSeparator());
 
             List<String> lines = new ArrayList<>();
 
@@ -103,7 +133,18 @@ public class EnclosingBeanFieldsResolver extends TemplateVariableResolver {
         return result;
     }
 
+    /**
+     * Finds all pairs of fields to methods which follow a pre-defined "bean" pattern. Pairs match this pattern if a
+     * field has a corresponding method named "get(fieldname)". For booleans, "is(fieldname)" is also permissible. In
+     * both cases the field name is expected to be capitalized
+     *
+     * @param context
+     *            Information about the compilation unit the template is being inserted into
+     * @return A mapping of any bean fields to the name of the method that matched
+     */
     protected Map<String, String> getBeanPairs(CompilationUnitContext context) {
+        Objects.requireNonNull(context);
+
         Map<String, String> result = new LinkedHashMap<String, String>();
 
         try {
@@ -111,9 +152,9 @@ public class EnclosingBeanFieldsResolver extends TemplateVariableResolver {
             Set<String> methodLookup = getCandidateMethods(type);
 
             for (IField field : type.getFields()) {
-                String capitializedName = capitializeFirstLetter(field.getElementName());
-                String getter = "get" + capitializedName;
-                String isGetter = "is" + capitializedName;
+                String capitalizedName = capitalizeFirstLetter(field.getElementName());
+                String getter = "get" + capitalizedName;
+                String isGetter = "is" + capitalizedName;
 
                 if (methodLookup.contains(getter)) {
                     result.put(field.getElementName(), getter + "()");
@@ -128,7 +169,19 @@ public class EnclosingBeanFieldsResolver extends TemplateVariableResolver {
         return result;
     }
 
+    /**
+     * Finds and returns any methods within the provided type which match the expected pattern of a "getter". Matching
+     * methods start with either "get" or "is", and have no parameters
+     *
+     * @param type
+     *            Eclipse JDT representation of the type the template is being inserted into
+     * @return Set of method names matching "getter" criteria
+     * @throws JavaModelException
+     *             If there is an error reading Java model information from the type
+     */
     private Set<String> getCandidateMethods(IType type) throws JavaModelException {
+        Objects.requireNonNull(type);
+
         IMethod[] methods = type.getMethods();
         Set<String> methodLookup = new HashSet<>();
 
@@ -142,16 +195,36 @@ public class EnclosingBeanFieldsResolver extends TemplateVariableResolver {
         return methodLookup;
     }
 
+    /**
+     * Determines if a field represents a primitive or object boolean
+     *
+     * @param field
+     *            The field to check
+     * @return True if the field represents a form of Java boolean, false otherwise
+     * @throws JavaModelException
+     *             If there is an error reading Java model information from the field
+     */
     private boolean isBooleanField(IField field) throws JavaModelException {
+        Objects.requireNonNull(field);
+
         return BOOLEAN_TYPE_SIGNATURES.contains(field.getTypeSignature());
     }
 
-    private String capitializeFirstLetter(String name) {
-        String result = name;
+    /**
+     * Capitalizes the first letter in the provided string
+     *
+     * @param input
+     *            The string to capitalize
+     * @return The capitalized string
+     */
+    private String capitalizeFirstLetter(String input) {
+        Objects.requireNonNull(input);
 
-        if(!name.isEmpty()) {
-            String first = new String(name.substring(0, 1));
-            result = name.replaceFirst(first, first.toUpperCase());
+        String result = input;
+
+        if(!input.isEmpty()) {
+            String first = new String(input.substring(0, 1));
+            result = input.replaceFirst(first, first.toUpperCase());
         }
 
         return result;

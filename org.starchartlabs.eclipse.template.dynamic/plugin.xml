@@ -2,11 +2,13 @@
 <?eclipse version="3.4"?>
 <plugin>
    <extension
+         id="org.starchartlabs.eclipse.template.dynamic.template"
          point="org.eclipse.ui.editors.templates">
       <resolver
-            class="org.starchartlabs.eclipse.template.dynamic.EnclosingBeanFieldsResolver"
+            class="org.starchartlabs.eclipse.template.dynamic.resolver.EnclosedBeanFieldsResolver"
             contextTypeId="java"
-            description="Allows dyanmic insertion of values per bean field. A bean field is a field with a matching-named getter. Use $f for field name, $g for getter name. Form :enclosed_bean_fields(template, separator, newline-boolean)"
+            description="Allows insertion of values per bean field. A bean field is a field with a matching-named getter. Use ${name} for field name, ${getter} for getter name within the template. Form ${id:enclosed_bean_fields(template, separator, newline[boolean])}"
+            name="Enclosed Bean Fields"
             type="enclosed_bean_fields">
       </resolver>
    </extension>
