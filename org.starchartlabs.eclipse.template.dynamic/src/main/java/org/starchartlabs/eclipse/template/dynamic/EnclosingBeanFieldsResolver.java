@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.eclipse.jdt.core.IField;
 import org.eclipse.jdt.core.IJavaElement;
@@ -52,6 +53,12 @@ import org.eclipse.jface.text.templates.TemplateVariableResolver;
 @SuppressWarnings("restriction")
 public class EnclosingBeanFieldsResolver extends TemplateVariableResolver {
 
+    private static final String NAME_PLACEHOLDER = "\\$\\{name\\}";
+
+    private static final String GETTER_PLACEHOLDER = "\\$\\{getter\\}";
+
+    private static final Set<String> BOOLEAN_TYPE_SIGNATURES = Stream.of("Z", "QBoolean;").collect(Collectors.toSet());
+
     @Override
     public void resolve(TemplateVariable variable, TemplateContext context) {
         if (context instanceof CompilationUnitContext) {
@@ -71,7 +78,7 @@ public class EnclosingBeanFieldsResolver extends TemplateVariableResolver {
         }
     }
 
-    private String[] resolveAll(CompilationUnitContext context, List<String> params) {
+    protected String[] resolveAll(CompilationUnitContext context, List<String> params) {
         String[] result = null;
 
         if (params.size() == 3) {
@@ -79,12 +86,14 @@ public class EnclosingBeanFieldsResolver extends TemplateVariableResolver {
             String separator = params.get(1);
             boolean newline = Boolean.valueOf(params.get(2));
 
-            separator = (newline ? '\n' + separator : separator);
+            separator = (newline ? "\n" + separator : separator);
 
             List<String> lines = new ArrayList<>();
 
             for (Entry<String, String> entry : getBeanPairs(context).entrySet()) {
-                lines.add(template.replaceAll("\\$f", entry.getKey()).replaceAll("\\$g", entry.getValue()));
+                lines.add(template
+                        .replaceAll(NAME_PLACEHOLDER, entry.getKey())
+                        .replaceAll(GETTER_PLACEHOLDER, entry.getValue()));
             }
 
             String value = lines.stream().collect(Collectors.joining(separator));
@@ -94,7 +103,7 @@ public class EnclosingBeanFieldsResolver extends TemplateVariableResolver {
         return result;
     }
 
-    private Map<String, String> getBeanPairs(CompilationUnitContext context) {
+    protected Map<String, String> getBeanPairs(CompilationUnitContext context) {
         Map<String, String> result = new LinkedHashMap<String, String>();
 
         try {
@@ -102,12 +111,14 @@ public class EnclosingBeanFieldsResolver extends TemplateVariableResolver {
             Set<String> methodLookup = getCandidateMethods(type);
 
             for (IField field : type.getFields()) {
-                String capName = capitializeFirstLetter(field.getElementName());
+                String capitializedName = capitializeFirstLetter(field.getElementName());
+                String getter = "get" + capitializedName;
+                String isGetter = "is" + capitializedName;
 
-                if (methodLookup.contains("get" + capName)) {
-                    result.put(field.getElementName(), "get" + capName + "()");
-                } else if (isBooleanField(field) && methodLookup.contains("is" + capName)) {
-                    result.put(field.getElementName(), "is" + capName + "()");
+                if (methodLookup.contains(getter)) {
+                    result.put(field.getElementName(), getter + "()");
+                } else if (isBooleanField(field) && methodLookup.contains(isGetter)) {
+                    result.put(field.getElementName(), isGetter + "()");
                 }
             }
         } catch (JavaModelException e) {
@@ -132,8 +143,7 @@ public class EnclosingBeanFieldsResolver extends TemplateVariableResolver {
     }
 
     private boolean isBooleanField(IField field) throws JavaModelException {
-        String typeSig = field.getTypeSignature();
-        return ("Z".equals(typeSig) || "QBoolean;".equals(typeSig));
+        return BOOLEAN_TYPE_SIGNATURES.contains(field.getTypeSignature());
     }
 
     private String capitializeFirstLetter(String name) {
