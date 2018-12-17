@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<templates>
+
+<!--
+	Apache Commons
+-->
+<template autoinsert="true" context="java" deleted="false" description="* CompareTo() builder Apache Commons lang template" enabled="true" name="dynamicCompareTo">
+public int compareTo(${enclosing_type} o) {&#13;
+    return new  ${builderType:newType(org.apache.commons.lang3.builder.CompareToBuilder)}()&#13;
+	 ${strfields:enclosed_bean_fields('.append(${name}, o.${name})', '${newline}')}&#13;
+     .toComparison();&#13;
+}
+</template>
+<!--  -->
+<template autoinsert="true" context="java" deleted="false" description="* Equals() builder Apache Commons lang template" enabled="true" name="dynamicEquals">@Override&#13;
+public boolean equals(Object obj) {&#13;
+    if (this == obj) {&#13;
+        return true;&#13;
+    }&#13;
+    if (obj == null) {&#13;
+        return false;&#13;
+    }&#13;
+    if (!(obj instanceof ${enclosing_type})) {&#13;
+        return false;&#13;
+    }&#13;
+    ${enclosing_type} other = (${enclosing_type}) obj;&#13;
+    return new ${builderType:newType(org.apache.commons.lang3.builder.EqualsBuilder)}()&#13;
+	 ${strfields:enclosed_bean_fields('.append(${name}, other.${name})', '${newline}')}&#13;
+     .isEquals();&#13;
+}
+</template>
+<!--  -->
+<template autoinsert="true" context="java" deleted="false" description="* ToString() builder Apache Commons lang template" enabled="true" name="dynamicToString">@Override&#13;
+public String toString(){&#13;
+   return new ${builderType:newType(org.apache.commons.lang3.builder.ToStringBuilder)}(this, ${:newType(org.apache.commons.lang3.builder.ToStringStyle)}.${DEFAULT_STYLE})&#13;
+    ${strfields:enclosed_bean_fields('.append("${name}", ${name})', '${newline}')}&#13;
+    .toString();&#13;
+}
+</template>
+<!--  -->
+<template autoinsert="true" context="java" deleted="false" description="* HashCode() builder Apache Commons lang template" enabled="true" name="dynamicHashCode">@Override&#13;
+public int hashCode() {&#13;
+    return new ${builderType:newType(org.apache.commons.lang3.builder.HashCodeBuilder)}()&#13;
+   ${strfields:enclosed_bean_fields('.append(${name})', '${newline}')}&#13;
+    .toHashCode();&#13;
+}
+</template>
+<!--
+	Others
+-->
+<template autoinsert="true" context="java" deleted="false" description="* Builder pattern" enabled="true" name="dynamicBuilder">private ${enclosing_type}(Builder builder) {&#13;
+  ${strfields1:enclosed_bean_fields('this.${name} = builder.${name};', '${newline}')}&#13;
+}&#13;
+&#13;
+public static class Builder {&#13;
+   ${strfields2:enclosed_bean_fields('private ${type} ${name};', '${newline}')}&#13;
+&#13;
+   ${strfields3:enclosed_bean_fields('public Builder ${name}( ${type} ${name}) { this.${name} = ${name}; return this; }', '${newline}')}&#13;
+&#13;
+   public ${enclosing_type} build() {&#13;
+	   return new ${enclosing_type}(this);&#13;
+   }&#13;
+}</template>
+</templates>

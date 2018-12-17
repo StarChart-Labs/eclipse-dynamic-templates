@@ -7,7 +7,7 @@
  *
  * Contributors:
  *    romeara - initial API and implementation and/or initial documentation
- *    desprez - add field type and  setter.
+ *    desprez - add field type and setter.
  */
 package org.starchartlabs.eclipse.template.dynamic.resolver;
 
