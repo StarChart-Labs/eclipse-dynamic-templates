@@ -7,6 +7,7 @@
  *
  * Contributors:
  *    romeara - initial API and implementation and/or initial documentation
+ *    desprez - add field type and  setter.
  */
 package org.starchartlabs.eclipse.template.dynamic.resolver;
 
@@ -26,6 +27,7 @@ import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.internal.corext.template.java.CompilationUnitContext;
 import org.eclipse.jface.text.templates.TemplateContext;
 import org.eclipse.jface.text.templates.TemplateVariable;
@@ -79,16 +81,20 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
 
     protected static final String GETTER_PLACEHOLDER = "\\$\\{getter\\}";
 
+    protected static final String SETTER_PLACEHOLDER = "\\$\\{setter\\}";
+
+    protected static final String TYPE_PLACEHOLDER = "\\$\\{type\\}";
+
     protected static final String NEWLINE_PLACEHOLDER = "\\$\\{newline\\}";
 
     private static final Set<String> BOOLEAN_TYPE_SIGNATURES = Stream.of("Z", "QBoolean;").collect(Collectors.toSet());
 
     @Override
-    public void resolve(TemplateVariable variable, TemplateContext context) {
+    public void resolve(final TemplateVariable variable, final TemplateContext context) {
         if (context instanceof CompilationUnitContext) {
-            CompilationUnitContext jc = (CompilationUnitContext) context;
+            final CompilationUnitContext jc = (CompilationUnitContext) context;
 
-            String[] bindings = resolveAll(jc, variable.getVariableType().getParams());
+            final String[] bindings = resolveAll(jc, variable.getVariableType().getParams());
 
             // Store the result, and if resolved set unambiguous to true to avoid trying to get user input
             if (bindings != null) {
@@ -111,22 +117,28 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
      * @param variableParameters
      * @return an array of possible bindings of this type in <code>context</code>, null if binding was unsuccessful
      */
-    protected String[] resolveAll(CompilationUnitContext context, List<String> variableParameters) {
+    protected String[] resolveAll(final CompilationUnitContext context, final List<String> variableParameters) {
         String[] result = null;
 
         if (variableParameters.size() == 2) {
-            String template = variableParameters.get(0);
-            String separator = variableParameters.get(1).replaceAll(NEWLINE_PLACEHOLDER, System.lineSeparator());
+            final String template = variableParameters.get(0);
+            final String separator = variableParameters.get(1).replaceAll(NEWLINE_PLACEHOLDER, System.lineSeparator());
 
-            List<String> lines = new ArrayList<>();
+            final List<String> lines = new ArrayList<>();
 
-            for (Entry<String, String> entry : getBeanPairs(context).entrySet()) {
-                lines.add(template
-                        .replaceAll(NAME_PLACEHOLDER, entry.getKey())
-                        .replaceAll(GETTER_PLACEHOLDER, entry.getValue()));
+            for (final Entry<String, FieldInfo> entry : getBeanPairs(context).entrySet()) {
+
+                final FieldInfo fieldInfo = entry.getValue();
+
+                lines.add(template //
+                        .replaceAll(NAME_PLACEHOLDER, entry.getKey()) //
+                        .replaceAll(GETTER_PLACEHOLDER, fieldInfo.getGetter()) //
+                        .replaceAll(SETTER_PLACEHOLDER, fieldInfo.getSetter()) //
+                        .replaceAll(TYPE_PLACEHOLDER, fieldInfo.getType()) //
+                        );
             }
 
-            String value = lines.stream().collect(Collectors.joining(separator));
+            final String value = lines.stream().collect(Collectors.joining(separator));
             result = new String[] { value };
         }
 
@@ -142,27 +154,34 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
      *            Information about the compilation unit the template is being inserted into
      * @return A mapping of any bean fields to the name of the method that matched
      */
-    protected Map<String, String> getBeanPairs(CompilationUnitContext context) {
+    protected Map<String, FieldInfo> getBeanPairs(final CompilationUnitContext context) {
         Objects.requireNonNull(context);
 
-        Map<String, String> result = new LinkedHashMap<String, String>();
+        final Map<String, FieldInfo> result = new LinkedHashMap<String, FieldInfo>();
 
         try {
-            IType type = (IType) context.findEnclosingElement(IJavaElement.TYPE);
-            Set<String> methodLookup = getCandidateMethods(type);
+            final IType type = (IType) context.findEnclosingElement(IJavaElement.TYPE);
+            final Set<String> methodLookup = getCandidateMethods(type);
 
-            for (IField field : type.getFields()) {
-                String capitalizedName = capitalizeFirstLetter(field.getElementName());
-                String getter = "get" + capitalizedName;
-                String isGetter = "is" + capitalizedName;
+            for (final IField field : type.getFields()) {
+                final String capitalizedName = capitalizeFirstLetter(field.getElementName());
+
+                final String getter = "get" + capitalizedName;
+                final String isGetter = "is" + capitalizedName;
+
+                final FieldInfo fieldInfo  =  new FieldInfo();
+                fieldInfo.setSetter("set" + capitalizedName);
+                fieldInfo.setType(Signature.getSignatureSimpleName(field.getTypeSignature()));
 
                 if (methodLookup.contains(getter)) {
-                    result.put(field.getElementName(), getter + "()");
+                    fieldInfo.setGetter( getter + "()");
                 } else if (isBooleanField(field) && methodLookup.contains(isGetter)) {
-                    result.put(field.getElementName(), isGetter + "()");
+                    fieldInfo.setGetter( isGetter + "()");
                 }
+
+                result.put(field.getElementName(), fieldInfo);
             }
-        } catch (JavaModelException e) {
+        } catch (final JavaModelException e) {
             throw new RuntimeException(e);
         }
 
@@ -179,13 +198,13 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
      * @throws JavaModelException
      *             If there is an error reading Java model information from the type
      */
-    private Set<String> getCandidateMethods(IType type) throws JavaModelException {
+    private Set<String> getCandidateMethods(final IType type) throws JavaModelException {
         Objects.requireNonNull(type);
 
-        IMethod[] methods = type.getMethods();
-        Set<String> methodLookup = new HashSet<>();
+        final IMethod[] methods = type.getMethods();
+        final Set<String> methodLookup = new HashSet<>();
 
-        for (IMethod method : methods) {
+        for (final IMethod method : methods) {
             if (method.getParameterNames().length == 0
                     && (method.getElementName().startsWith("get") || method.getElementName().startsWith("is"))) {
                 methodLookup.add(method.getElementName());
@@ -204,7 +223,7 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
      * @throws JavaModelException
      *             If there is an error reading Java model information from the field
      */
-    private boolean isBooleanField(IField field) throws JavaModelException {
+    private boolean isBooleanField(final IField field) throws JavaModelException {
         Objects.requireNonNull(field);
 
         return BOOLEAN_TYPE_SIGNATURES.contains(field.getTypeSignature());
@@ -217,16 +236,18 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
      *            The string to capitalize
      * @return The capitalized string
      */
-    private String capitalizeFirstLetter(String input) {
+    private String capitalizeFirstLetter(final String input) {
         Objects.requireNonNull(input);
 
         String result = input;
 
         if(!input.isEmpty()) {
-            String first = new String(input.substring(0, 1));
+            final String first = new String(input.substring(0, 1));
             result = input.replaceFirst(first, first.toUpperCase());
         }
 
         return result;
     }
+
+
 }
