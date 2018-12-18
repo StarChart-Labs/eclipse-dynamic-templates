@@ -90,11 +90,11 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
     private static final Set<String> BOOLEAN_TYPE_SIGNATURES = Stream.of("Z", "QBoolean;").collect(Collectors.toSet());
 
     @Override
-    public void resolve(final TemplateVariable variable, final TemplateContext context) {
+    public void resolve(TemplateVariable variable, TemplateContext context) {
         if (context instanceof CompilationUnitContext) {
-            final CompilationUnitContext jc = (CompilationUnitContext) context;
+            CompilationUnitContext jc = (CompilationUnitContext) context;
 
-            final String[] bindings = resolveAll(jc, variable.getVariableType().getParams());
+            String[] bindings = resolveAll(jc, variable.getVariableType().getParams());
 
             // Store the result, and if resolved set unambiguous to true to avoid trying to get user input
             if (bindings != null) {
@@ -117,18 +117,18 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
      * @param variableParameters
      * @return an array of possible bindings of this type in <code>context</code>, null if binding was unsuccessful
      */
-    protected String[] resolveAll(final CompilationUnitContext context, final List<String> variableParameters) {
+    protected String[] resolveAll(CompilationUnitContext context, List<String> variableParameters) {
         String[] result = null;
 
         if (variableParameters.size() == 2) {
-            final String template = variableParameters.get(0);
-            final String separator = variableParameters.get(1).replaceAll(NEWLINE_PLACEHOLDER, System.lineSeparator());
+            String template = variableParameters.get(0);
+            String separator = variableParameters.get(1).replaceAll(NEWLINE_PLACEHOLDER, System.lineSeparator());
 
-            final List<String> lines = new ArrayList<>();
+            List<String> lines = new ArrayList<>();
 
-            for (final Entry<String, FieldInfo> entry : getBeanPairs(context).entrySet()) {
+            for (Entry<String, FieldInfo> entry : getBeanPairs(context).entrySet()) {
 
-                final FieldInfo fieldInfo = entry.getValue();
+                FieldInfo fieldInfo = entry.getValue();
 
                 lines.add(template //
                         .replaceAll(NAME_PLACEHOLDER, entry.getKey()) //
@@ -138,7 +138,7 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
                         );
             }
 
-            final String value = lines.stream().collect(Collectors.joining(separator));
+            String value = lines.stream().collect(Collectors.joining(separator));
             result = new String[] { value };
         }
 
@@ -154,22 +154,22 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
      *            Information about the compilation unit the template is being inserted into
      * @return A mapping of any bean fields to the name of the method that matched
      */
-    protected Map<String, FieldInfo> getBeanPairs(final CompilationUnitContext context) {
+    protected Map<String, FieldInfo> getBeanPairs(CompilationUnitContext context) {
         Objects.requireNonNull(context);
 
-        final Map<String, FieldInfo> result = new LinkedHashMap<String, FieldInfo>();
+        Map<String, FieldInfo> result = new LinkedHashMap<String, FieldInfo>();
 
         try {
-            final IType type = (IType) context.findEnclosingElement(IJavaElement.TYPE);
-            final Set<String> methodLookup = getCandidateMethods(type);
+            IType type = (IType) context.findEnclosingElement(IJavaElement.TYPE);
+            Set<String> methodLookup = getCandidateMethods(type);
 
-            for (final IField field : type.getFields()) {
-                final String capitalizedName = capitalizeFirstLetter(field.getElementName());
+            for (IField field : type.getFields()) {
+                String capitalizedName = capitalizeFirstLetter(field.getElementName());
 
-                final String getter = "get" + capitalizedName;
-                final String isGetter = "is" + capitalizedName;
+                String getter = "get" + capitalizedName;
+                String isGetter = "is" + capitalizedName;
 
-                final FieldInfo fieldInfo  =  new FieldInfo();
+                FieldInfo fieldInfo = new FieldInfo();
                 fieldInfo.setSetter("set" + capitalizedName);
                 fieldInfo.setType(Signature.getSignatureSimpleName(field.getTypeSignature()));
 
@@ -181,7 +181,7 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
 
                 result.put(field.getElementName(), fieldInfo);
             }
-        } catch (final JavaModelException e) {
+        } catch (JavaModelException e) {
             throw new RuntimeException(e);
         }
 
@@ -198,13 +198,13 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
      * @throws JavaModelException
      *             If there is an error reading Java model information from the type
      */
-    private Set<String> getCandidateMethods(final IType type) throws JavaModelException {
+    private Set<String> getCandidateMethods(IType type) throws JavaModelException {
         Objects.requireNonNull(type);
 
-        final IMethod[] methods = type.getMethods();
-        final Set<String> methodLookup = new HashSet<>();
+        IMethod[] methods = type.getMethods();
+        Set<String> methodLookup = new HashSet<>();
 
-        for (final IMethod method : methods) {
+        for (IMethod method : methods) {
             if (method.getParameterNames().length == 0
                     && (method.getElementName().startsWith("get") || method.getElementName().startsWith("is"))) {
                 methodLookup.add(method.getElementName());
@@ -223,7 +223,7 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
      * @throws JavaModelException
      *             If there is an error reading Java model information from the field
      */
-    private boolean isBooleanField(final IField field) throws JavaModelException {
+    private boolean isBooleanField(IField field) throws JavaModelException {
         Objects.requireNonNull(field);
 
         return BOOLEAN_TYPE_SIGNATURES.contains(field.getTypeSignature());
@@ -236,18 +236,17 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
      *            The string to capitalize
      * @return The capitalized string
      */
-    private String capitalizeFirstLetter(final String input) {
+    private String capitalizeFirstLetter(String input) {
         Objects.requireNonNull(input);
 
         String result = input;
 
         if(!input.isEmpty()) {
-            final String first = new String(input.substring(0, 1));
+            String first = new String(input.substring(0, 1));
             result = input.replaceFirst(first, first.toUpperCase());
         }
 
         return result;
     }
-
 
 }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <site>
-   <feature url="features/org.starchartlabs.eclipse.template.dynamic.feature_0.1.0.0.jar" id="org.starchartlabs.eclipse.template.dynamic.feature" version="0.1.0.0">
+   <feature url="features/org.starchartlabs.eclipse.template.dynamic.feature_0.1.2.0.jar" id="org.starchartlabs.eclipse.template.dynamic.feature" version="0.1.2.0">
       <category name="org.starchartlabs.eclipse.template.dyanmic"/>
    </feature>
    <category-def name="org.starchartlabs.eclipse.template.dyanmic" label="Java Code Dynamic Template Enhancements"/>
