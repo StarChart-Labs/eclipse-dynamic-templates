@@ -7,6 +7,7 @@
  *
  * Contributors:
  *    romeara - initial API and implementation and/or initial documentation
+ *    desprez - add field type and setter.
  */
 package org.starchartlabs.eclipse.template.dynamic.resolver;
 
@@ -26,6 +27,7 @@ import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.internal.corext.template.java.CompilationUnitContext;
 import org.eclipse.jface.text.templates.TemplateContext;
 import org.eclipse.jface.text.templates.TemplateVariable;
@@ -79,6 +81,10 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
 
     protected static final String GETTER_PLACEHOLDER = "\\$\\{getter\\}";
 
+    protected static final String SETTER_PLACEHOLDER = "\\$\\{setter\\}";
+
+    protected static final String TYPE_PLACEHOLDER = "\\$\\{type\\}";
+
     protected static final String NEWLINE_PLACEHOLDER = "\\$\\{newline\\}";
 
     private static final Set<String> BOOLEAN_TYPE_SIGNATURES = Stream.of("Z", "QBoolean;").collect(Collectors.toSet());
@@ -120,10 +126,16 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
 
             List<String> lines = new ArrayList<>();
 
-            for (Entry<String, String> entry : getBeanPairs(context).entrySet()) {
-                lines.add(template
-                        .replaceAll(NAME_PLACEHOLDER, entry.getKey())
-                        .replaceAll(GETTER_PLACEHOLDER, entry.getValue()));
+            for (Entry<String, FieldInfo> entry : getBeanPairs(context).entrySet()) {
+
+                FieldInfo fieldInfo = entry.getValue();
+
+                lines.add(template //
+                        .replaceAll(NAME_PLACEHOLDER, entry.getKey()) //
+                        .replaceAll(GETTER_PLACEHOLDER, fieldInfo.getGetter()) //
+                        .replaceAll(SETTER_PLACEHOLDER, fieldInfo.getSetter()) //
+                        .replaceAll(TYPE_PLACEHOLDER, fieldInfo.getType()) //
+                        );
             }
 
             String value = lines.stream().collect(Collectors.joining(separator));
@@ -142,10 +154,10 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
      *            Information about the compilation unit the template is being inserted into
      * @return A mapping of any bean fields to the name of the method that matched
      */
-    protected Map<String, String> getBeanPairs(CompilationUnitContext context) {
+    protected Map<String, FieldInfo> getBeanPairs(CompilationUnitContext context) {
         Objects.requireNonNull(context);
 
-        Map<String, String> result = new LinkedHashMap<String, String>();
+        Map<String, FieldInfo> result = new LinkedHashMap<String, FieldInfo>();
 
         try {
             IType type = (IType) context.findEnclosingElement(IJavaElement.TYPE);
@@ -153,14 +165,21 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
 
             for (IField field : type.getFields()) {
                 String capitalizedName = capitalizeFirstLetter(field.getElementName());
+
                 String getter = "get" + capitalizedName;
                 String isGetter = "is" + capitalizedName;
 
+                FieldInfo fieldInfo = new FieldInfo();
+                fieldInfo.setSetter("set" + capitalizedName);
+                fieldInfo.setType(Signature.getSignatureSimpleName(field.getTypeSignature()));
+
                 if (methodLookup.contains(getter)) {
-                    result.put(field.getElementName(), getter + "()");
+                    fieldInfo.setGetter( getter + "()");
                 } else if (isBooleanField(field) && methodLookup.contains(isGetter)) {
-                    result.put(field.getElementName(), isGetter + "()");
+                    fieldInfo.setGetter( isGetter + "()");
                 }
+
+                result.put(field.getElementName(), fieldInfo);
             }
         } catch (JavaModelException e) {
             throw new RuntimeException(e);
@@ -229,4 +248,5 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
 
         return result;
     }
+
 }
