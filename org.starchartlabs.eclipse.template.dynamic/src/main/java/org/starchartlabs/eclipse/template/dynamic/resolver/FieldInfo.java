@@ -1,35 +1,36 @@
 package org.starchartlabs.eclipse.template.dynamic.resolver;
 
+import java.util.Optional;
+
+/**
+ * Represents data associated with a given field
+ *
+ * @author desprez, romeara
+ */
 public class FieldInfo {
 
-    private String getter;
+    private final String type;
 
-    private String setter;
+    private final String getter;
 
-    private String type;
+    private final Optional<String> setter;
 
-    public String getGetter() {
-        return getter;
-    }
-
-    public void setGetter(final String getter) {
+    public FieldInfo(String type, String getter, String setter) {
+        this.type = type;
         this.getter = getter;
-    }
-
-    public String getSetter() {
-        return setter;
-    }
-
-    public void setSetter(final String setter) {
-        this.setter = setter;
+        this.setter = Optional.ofNullable(setter);
     }
 
     public String getType() {
         return type;
     }
 
-    public void setType(final String type) {
-        this.type = type;
+    public String getGetter() {
+        return getter;
+    }
+
+    public Optional<String> getSetter() {
+        return setter;
     }
 
 }
