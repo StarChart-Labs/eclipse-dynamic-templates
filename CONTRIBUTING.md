@@ -32,6 +32,6 @@ We expect both outside contributors and StarChart Labs members to treat each wit
 
 ## Contributions
 
-Thanks to the following GitHub users for their contributions to this project! Check out the [change log](./CHANGE_LOG.md) to see their specific contributions
+Thanks to the following GitHub users for their contributions to this project! Check out the [change log](./CHANGELOG.md) to see their specific contributions
 
 - desprez
