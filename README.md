@@ -84,6 +84,8 @@ Contributions are always welcome!
 * The plug-ins are currently developed against Java 8
 * All pull requests should be done against the master branch
 
+See the [contribution documentation](./CONTRIBUTING.md) for detailed setup information and guidelines
+
 ## Licensing
 
 The repository working set plug in is licensed under the Eclipse Public License 1.0, as specified and documented in the LICENSE.md file within each plug-in
