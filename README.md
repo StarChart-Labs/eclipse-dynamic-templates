@@ -23,7 +23,11 @@ The creator of the template replaces the following in the above:
 - `id`
   - An identifier and default value (unique within the template) to use if there is a resolution error
 - `template`
-  - Code to subsitute per field/getter set within the enclosing class. Users may use the value `${name}` and `$getter}` to substitute the field name or corresponding getter name of of the field/getter pair
+  - Code to subsitute per field/getter set within the enclosing class. Users may use the values:
+    - `${type}` to substitute the field type
+    - `${name}` to substitute the field name
+    - `${getter}` to substitute the corresponding getter name of the field/getter pair
+    - `${setter_name}` to substitute the corresponding setter name of of the field, if it exists (will not be subsituted if not present, and does not include parentheses or arguments)
 - `separator`
   - Code to place between each occurance of the template generated. Users may use the value `${newline}` to substitute a newline into the separator. If code formatting is enabled for templates, its application may override the resulting newlines
   
@@ -79,6 +83,8 @@ Contributions are always welcome!
 * An Eclipse plug-in development environment is required to work with the projects - the last used Eclipse version was Oxygen. 
 * The plug-ins are currently developed against Java 8
 * All pull requests should be done against the master branch
+
+See the [contribution documentation](./CONTRIBUTING.md) for detailed setup information and guidelines
 
 ## Licensing
 

@@ -7,6 +7,7 @@
  *
  * Contributors:
  *    romeara - initial API and implementation and/or initial documentation
+ *    desprez - add field type and setter.
  */
 package org.starchartlabs.eclipse.template.dynamic.resolver;
 
@@ -26,6 +27,7 @@ import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.internal.corext.template.java.CompilationUnitContext;
 import org.eclipse.jface.text.templates.TemplateContext;
 import org.eclipse.jface.text.templates.TemplateVariable;
@@ -48,8 +50,9 @@ import org.eclipse.jface.text.templates.TemplateVariableResolver;
  * Where the user-provided values are:
  * <ul>
  * <li>id - identifier (unique within template) and default filler value in case of error</li>
- * <li>template - Line to substitute per bean-field. May use ${name} within to substitute field name, and ${getter} to
- * substitute getter method (including parentheses)</li>
+ * <li>template - Line to substitute per bean-field. May use ${type} within to substitute field type, ${name} within to
+ * substitute field name, ${getter} to substitute getter method (including parentheses), and ${setter_name} to
+ * substitute the field's setter method name (if present)</li>
  * <li>separator - value, if any, to place between each occurrence of the substituted template. May use ${newline} to
  * substitute in a System.lineSeparator(). Resulting new-lines will be overridden by code formatter if it is enabled for
  * the template</li>
@@ -69,15 +72,19 @@ import org.eclipse.jface.text.templates.TemplateVariableResolver;
  * <li>http://help.eclipse.org/kepler/index.jsp?topic=%2Forg.eclipse.jdt.doc.user%2Fconcepts%2Fconcept-template-variables.htm</li>
  * </ul>
  *
- * @author romeara
+ * @author romeara, desprez
  * @since 0.1.0
  */
 @SuppressWarnings("restriction")
 public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
 
+    protected static final String TYPE_PLACEHOLDER = "\\$\\{type\\}";
+
     protected static final String NAME_PLACEHOLDER = "\\$\\{name\\}";
 
     protected static final String GETTER_PLACEHOLDER = "\\$\\{getter\\}";
+
+    protected static final String SETTER_PLACEHOLDER = "\\$\\{setter_name\\}";
 
     protected static final String NEWLINE_PLACEHOLDER = "\\$\\{newline\\}";
 
@@ -120,10 +127,19 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
 
             List<String> lines = new ArrayList<>();
 
-            for (Entry<String, String> entry : getBeanPairs(context).entrySet()) {
-                lines.add(template
+            for (Entry<String, FieldInfo> entry : getBeanPairs(context).entrySet()) {
+                FieldInfo fieldInfo = entry.getValue();
+
+                String processed = fieldInfo.getSetter()
+                        .map(setter -> template.replaceAll(SETTER_PLACEHOLDER, setter))
+                        .orElse(template);
+
+                processed = processed
+                        .replaceAll(TYPE_PLACEHOLDER, fieldInfo.getType())
                         .replaceAll(NAME_PLACEHOLDER, entry.getKey())
-                        .replaceAll(GETTER_PLACEHOLDER, entry.getValue()));
+                        .replaceAll(GETTER_PLACEHOLDER, fieldInfo.getGetter());
+
+                lines.add(processed);
             }
 
             String value = lines.stream().collect(Collectors.joining(separator));
@@ -142,10 +158,10 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
      *            Information about the compilation unit the template is being inserted into
      * @return A mapping of any bean fields to the name of the method that matched
      */
-    protected Map<String, String> getBeanPairs(CompilationUnitContext context) {
+    protected Map<String, FieldInfo> getBeanPairs(CompilationUnitContext context) {
         Objects.requireNonNull(context);
 
-        Map<String, String> result = new LinkedHashMap<String, String>();
+        Map<String, FieldInfo> result = new LinkedHashMap<String, FieldInfo>();
 
         try {
             IType type = (IType) context.findEnclosingElement(IJavaElement.TYPE);
@@ -153,13 +169,24 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
 
             for (IField field : type.getFields()) {
                 String capitalizedName = capitalizeFirstLetter(field.getElementName());
+
                 String getter = "get" + capitalizedName;
                 String isGetter = "is" + capitalizedName;
 
+                FieldInfo fieldInfo = null;
+                String setterMethod = "set" + capitalizedName;
+                setterMethod = (methodLookup.contains(setterMethod) ? setterMethod : null);
+
                 if (methodLookup.contains(getter)) {
-                    result.put(field.getElementName(), getter + "()");
+                    fieldInfo = new FieldInfo(Signature.getSignatureSimpleName(field.getTypeSignature()), getter + "()",
+                            setterMethod);
                 } else if (isBooleanField(field) && methodLookup.contains(isGetter)) {
-                    result.put(field.getElementName(), isGetter + "()");
+                    fieldInfo = new FieldInfo(Signature.getSignatureSimpleName(field.getTypeSignature()),
+                            isGetter + "()", setterMethod);
+                }
+
+                if (fieldInfo != null) {
+                    result.put(field.getElementName(), fieldInfo);
                 }
             }
         } catch (JavaModelException e) {
@@ -170,8 +197,9 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
     }
 
     /**
-     * Finds and returns any methods within the provided type which match the expected pattern of a "getter". Matching
-     * methods start with either "get" or "is", and have no parameters
+     * Finds and returns any methods within the provided type which match the expected pattern of a "getter" or
+     * "setter". Matching "getter" methods start with either "get" or "is", and have no parameters. Matching "setter"
+     * methods start with "set" and have one parameter
      *
      * @param type
      *            Eclipse JDT representation of the type the template is being inserted into
@@ -188,6 +216,8 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
         for (IMethod method : methods) {
             if (method.getParameterNames().length == 0
                     && (method.getElementName().startsWith("get") || method.getElementName().startsWith("is"))) {
+                methodLookup.add(method.getElementName());
+            } else if (method.getParameterNames().length == 1 && method.getElementName().startsWith("set")) {
                 methodLookup.add(method.getElementName());
             }
         }
@@ -222,11 +252,12 @@ public class EnclosedBeanFieldsResolver extends TemplateVariableResolver {
 
         String result = input;
 
-        if(!input.isEmpty()) {
+        if (!input.isEmpty()) {
             String first = new String(input.substring(0, 1));
             result = input.replaceFirst(first, first.toUpperCase());
         }
 
         return result;
     }
+
 }
