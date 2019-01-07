@@ -2,7 +2,7 @@
 <feature
       id="org.starchartlabs.eclipse.template.dynamic.feature"
       label="Java Template Dynamic Variables"
-      version="0.1.0.0"
+      version="0.2.0.0"
       provider-name="StarChart Labs">
 
    <description url="https://github.com/StarChart-Labs/eclipse-dynamic-templates">
