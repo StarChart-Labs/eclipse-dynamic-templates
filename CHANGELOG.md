@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.2.0.0]
 ### Added
+- Added "enclosed_fields" variable for line-per-field capabilities to Java code templates
+
+## [0.2.0.0]
+### Added
 
 - Add ability to template insertion of setters (desprez)
 - Add ability to template insertion of field type (desprez)
