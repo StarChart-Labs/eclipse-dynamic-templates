@@ -27,7 +27,7 @@ The creator of the template replaces the following in the above:
 - `id`
   - An identifier and default value (unique within the template) to use if there is a resolution error
 - `template`
-  - Code to subsitute per field/getter set within the enclosing class. Users may use the values:
+  - Code to subsitute per field within the enclosing class. Users may use the values:
     - `${type}` to substitute the field type
     - `${name}` to substitute the field name
 - `separator`
@@ -35,7 +35,7 @@ The creator of the template replaces the following in the above:
   
 ## Example
 
-The following template uses the `enclosed_ields` variable:
+The following template uses the `enclosed_fields` variable:
 
 ```
 public ${enclosing_type}(${paramfields:enclosed_fields('${type} ${name}', ', ')}){
