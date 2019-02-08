@@ -11,6 +11,13 @@
             name="%resolver.name"
             type="enclosed_bean_fields">
       </resolver>
+      <resolver
+            class="org.starchartlabs.eclipse.template.dynamic.resolver.EnclosedFieldsResolver"
+            contextTypeId="java"
+            description="%resolver.description.0"
+            name="%resolver.name.0"
+            type="enclosed_fields">
+      </resolver>
    </extension>
 
 </plugin>
