@@ -1,5 +1,7 @@
 # Eclipse Java Code Template Dynamic Variables Plug-in
 
+[![Changelog validated by Chronicler](https://chronicler.starchartlabs.org/images/changelog-chronicler-success.png)](https://chronicler.starchartlabs.org/)
+
 Eclipse Plug-in to allow templates actions based on Java Bean fields present in a target class
 
 See recent activity in the [Change Log](CHANGELOG.md)
